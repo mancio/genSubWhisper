@@ -1,5 +1,6 @@
 import glob
 import os
+import sys
 
 import torch
 from moviepy.editor import VideoFileClip
@@ -8,13 +9,15 @@ from whisper.utils import get_writer
 
 import names
 
+model_size = "small"  # tiny,base,small,medium,large
+
 
 def get_subs(audio_path, device, model=None):
     if device == names.CPU:
-        model = whisper.load_model("base").to("cpu")
+        model = whisper.load_model(model_size).to("cpu")
     elif device == names.GPU_GEFORCE_CUDA:
         torch.cuda.init()
-        model = whisper.load_model("base").to("cuda")
+        model = whisper.load_model(model_size).to("cuda")
     result = model.transcribe(audio_path, verbose=False)
     return result
 
@@ -70,10 +73,12 @@ def main():
     device_to_translate = names.GPU_GEFORCE_CUDA
     # device_to_translate = names.CPU
 
-    folder = r'D:\torrent\Less.Than.Perfect.s01.DVDRip\output_folder\test'
+    folder = sys.argv[1]
 
     # Get a list of video files in the folder with .avi and .mkv extensions
-    video_files = glob.glob(os.path.join(folder, '*.avi')) + glob.glob(os.path.join(folder, '*.mkv'))
+    video_files = glob.glob(os.path.join(folder, '*.avi')) + glob.glob(os.path.join(folder, '*.mkv')) + \
+                  glob.glob(os.path.join(folder, '*.mp4'))
+
     total_videos = len(video_files)
 
     for i, video_file in enumerate(video_files, start=1):
