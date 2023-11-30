@@ -18,7 +18,7 @@ def get_subs(audio_path, device, model=None):
     elif device == names.GPU_GEFORCE_CUDA:
         torch.cuda.init()
         model = whisper.load_model(model_size).to("cuda")
-    result = model.transcribe(audio_path, verbose=False)
+    result = model.transcribe(audio_path, verbose=False, condition_on_previous_text=False)
     return result
 
 
@@ -28,7 +28,7 @@ def make_srt(result, audio_path, main_folder):
         "output_format": "srt",  # Specify the desired output format
         "max_line_width": None,
         "max_line_count": None,
-        "highlight_words": False
+        "highlight_words": False,
     }
 
     # Save as an SRT file
@@ -70,6 +70,11 @@ def remove_all_mp3(path):
 
 
 def main():
+    # Check if the folder name is provided
+    if len(sys.argv) < 2:
+        print("Error: No folder name specified.")
+        sys.exit(1)  # Exit the script with an error code
+
     device_to_translate = names.GPU_GEFORCE_CUDA
     # device_to_translate = names.CPU
 
