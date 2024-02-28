@@ -7,9 +7,34 @@ from moviepy.editor import VideoFileClip
 import whisper
 from whisper.utils import get_writer
 
+import srt
+
 import names
 
-model_size = "small"  # tiny,base,small,medium,large
+model_size = "tiny"  # tiny,base,small,medium,large
+
+
+def truncate_long_subs(srt_file_path, max_chars):
+    """
+    Truncates subtitles that exceed a certain number of characters in an SRT file.
+
+    Args:
+    srt_file_path (str): Path to the SRT file.
+    max_chars (int): Maximum allowed characters in a subtitle.
+    """
+    with open(srt_file_path, 'r', encoding='utf-8') as file:
+        subtitles = list(srt.parse(file.read()))
+
+    adjusted_subs = []
+    for sub in subtitles:
+        if len(sub.content) > max_chars:
+            # Truncate the content to the max allowed characters
+            sub.content = sub.content[:max_chars]
+        adjusted_subs.append(sub)
+
+    # Write the adjusted subtitles back to the SRT file
+    with open(srt_file_path, 'w', encoding='utf-8') as file:
+        file.write(srt.compose(adjusted_subs))
 
 
 def get_subs(audio_path, device, model=None):
@@ -31,9 +56,13 @@ def make_srt(result, audio_path, main_folder):
         "highlight_words": False,
     }
 
-    # Save as an SRT file
+    srt_file_name = os.path.basename(audio_path).rsplit('.', 1)[0] + ".srt"
+    srt_file_path = os.path.join(main_folder, srt_file_name)
+
     srt_writer = get_writer(options["output_format"], main_folder)
-    srt_writer(result, audio_path, options)  # Pass the options dictionary to the writer
+    srt_writer(result, audio_path, options)
+
+    return srt_file_path
 
 
 def extract_audio(path):
@@ -91,7 +120,9 @@ def main():
         extract_audio(video_file)
         audio_path = replace_extension_with_mp3(video_file)
         transcription = get_subs(audio_path, device_to_translate)
-        make_srt(transcription, audio_path, folder)
+        srt_file_path = make_srt(transcription, audio_path, folder)
+        print("truncate too long sentences")
+        truncate_long_subs(srt_file_path, 80)
         remove_all_mp3(folder)
 
 
