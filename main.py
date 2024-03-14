@@ -11,7 +11,7 @@ import srt
 
 import names
 
-model_size = "tiny"  # tiny,base,small,medium,large
+model_size = "base"  # tiny,base,small,medium,large
 
 
 def truncate_long_subs(srt_file_path, max_chars):
@@ -122,7 +122,7 @@ def main():
         transcription = get_subs(audio_path, device_to_translate)
         srt_file_path = make_srt(transcription, audio_path, folder)
         print("truncate too long sentences")
-        truncate_long_subs(srt_file_path, 80)
+        truncate_long_subs(srt_file_path, 90)
         remove_all_mp3(folder)
 
 
