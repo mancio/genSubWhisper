@@ -43,7 +43,7 @@ def get_subs(audio_path, device, model=None):
     elif device == names.GPU_GEFORCE_CUDA:
         torch.cuda.init()
         model = whisper.load_model(model_size).to("cuda")
-    result = model.transcribe(audio_path, verbose=False, condition_on_previous_text=False)
+    result = model.transcribe(audio_path, verbose=False, condition_on_previous_text=True)
     return result
 
 
@@ -65,7 +65,18 @@ def make_srt(result, audio_path, main_folder):
     return srt_file_path
 
 
+def replace_extension_with_mp3(path):
+    return os.path.splitext(path)[0] + ".mp3"
+
+
 def extract_audio(path):
+    # Determine the path for the audio file
+    audio_path = replace_extension_with_mp3(path)
+
+    # Check if the audio file already exists
+    if os.path.exists(audio_path):
+        print(f"Audio file already exists: {audio_path}")
+        return
     # Load the video clip
     video_clip = VideoFileClip(path)
 
@@ -78,17 +89,6 @@ def extract_audio(path):
     # Close the video and audio clips
     audio_clip.close()
     video_clip.close()
-
-
-def replace_extension_with_mp3(file_path):
-    # Get the directory path and the file's base name (without extension)
-    directory_path, base_name = os.path.split(file_path)
-    base_name_without_extension, _ = os.path.splitext(base_name)
-
-    # Create and return the new file path with ".mp3" extension
-    new_file_path = os.path.join(directory_path, base_name_without_extension + ".mp3")
-
-    return new_file_path
 
 
 def remove_all_mp3(path):
