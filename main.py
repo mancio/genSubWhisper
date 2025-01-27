@@ -11,7 +11,24 @@ import srt
 
 import names
 
-model_size = "base"  # tiny,base,small,medium,large
+import subprocess
+
+model_size = "tiny"  # tiny,base,small,medium,large
+
+
+
+def sync_subtitles(video_file, srt_file_path):
+    """
+    Synchronizes subtitles using autosubsync.
+
+    Args:
+    video_file (str): Path to the video file.
+    srt_file_path (str): Path to the SRT file.
+    """
+    output_srt_path = srt_file_path.replace(".srt", "_synced.srt")
+    print(f"Synchronizing subtitles for {video_file} with {srt_file_path}")
+    subprocess.run(["autosubsync", "--max_shift_secs", "10.0", video_file, srt_file_path, output_srt_path], check=True)
+    return output_srt_path
 
 
 def truncate_long_subs(srt_file_path, max_chars):
@@ -122,9 +139,10 @@ def main():
         transcription = get_subs(audio_path, device_to_translate)
         srt_file_path = make_srt(transcription, audio_path, folder)
         print("truncate too long sentences")
-        truncate_long_subs(srt_file_path, 90)
+        truncate_long_subs(srt_file_path, 120)
+        synced_srt_path = sync_subtitles(video_file, srt_file_path)
+        print(f"Synchronized subtitles saved to {synced_srt_path}")
         remove_all_mp3(folder)
-
 
 if __name__ == "__main__":
     main()
