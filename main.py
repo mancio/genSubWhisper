@@ -1,21 +1,31 @@
 import glob
 import os
 import sys
-
 import torch
 from moviepy.editor import VideoFileClip
 import whisper
 from whisper.utils import get_writer
-
 import srt
-
-import names
-
 import subprocess
+
+device_to_translate = "cuda" # or "cpu"
 
 model_size = "tiny"  # tiny,base,small,medium,large
 
+# sometimes Whisper is not able to sync the subtitles correctly,
+# this is the maximum time in seconds that the subtitles can be shifted dynamically
+max_time_resync_block = "240"
 
+
+def rename_and_remove_old_srt(synced_srt_path):
+    new_srt_path = synced_srt_path.replace("_sync.srt", ".srt")
+
+    if os.path.exists(new_srt_path):
+        os.remove(new_srt_path)
+
+    os.rename(synced_srt_path, new_srt_path)
+
+    return new_srt_path
 
 def sync_subtitles(video_file, srt_file_path):
     """
@@ -25,9 +35,15 @@ def sync_subtitles(video_file, srt_file_path):
     video_file (str): Path to the video file.
     srt_file_path (str): Path to the SRT file.
     """
-    output_srt_path = srt_file_path.replace(".srt", "_synced.srt")
+    output_srt_path = srt_file_path.replace(".srt", "_sync.srt")
     print(f"Synchronizing subtitles for {video_file} with {srt_file_path}")
-    subprocess.run(["autosubsync", "--max_shift_secs", "10.0", video_file, srt_file_path, output_srt_path], check=True)
+    try:
+        subprocess.run(
+            ["autosubsync", "--max_shift_secs", max_time_resync_block, video_file, srt_file_path, output_srt_path],
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: autosubsync failed with error: {e}")
     return output_srt_path
 
 
@@ -54,10 +70,10 @@ def truncate_long_subs(srt_file_path, max_chars):
         file.write(srt.compose(adjusted_subs))
 
 
-def get_subs(audio_path, device, model=None):
-    if device == names.CPU:
+def get_subs(audio_path, model=None):
+    if device_to_translate == "cpu":
         model = whisper.load_model(model_size).to("cpu")
-    elif device == names.GPU_GEFORCE_CUDA:
+    elif device_to_translate == "cuda":
         torch.cuda.init()
         model = whisper.load_model(model_size).to("cuda")
     result = model.transcribe(audio_path, verbose=False, condition_on_previous_text=True)
@@ -121,8 +137,7 @@ def main():
         print("Error: No folder name specified.")
         sys.exit(1)  # Exit the script with an error code
 
-    device_to_translate = names.GPU_GEFORCE_CUDA
-    # device_to_translate = names.CPU
+
 
     folder = sys.argv[1]
 
@@ -136,13 +151,14 @@ def main():
         print(f"Processing video {i}/{total_videos}")
         extract_audio(video_file)
         audio_path = replace_extension_with_mp3(video_file)
-        transcription = get_subs(audio_path, device_to_translate)
+        transcription = get_subs(audio_path)
         srt_file_path = make_srt(transcription, audio_path, folder)
         print("truncate too long sentences")
         truncate_long_subs(srt_file_path, 120)
         synced_srt_path = sync_subtitles(video_file, srt_file_path)
-        print(f"Synchronized subtitles saved to {synced_srt_path}")
         remove_all_mp3(folder)
+        new_sub = rename_and_remove_old_srt(synced_srt_path)
+        print(f"Synchronized subtitles saved to {new_sub}")
 
 if __name__ == "__main__":
     main()
